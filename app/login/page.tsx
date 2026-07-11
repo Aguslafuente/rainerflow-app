@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { LogoMark, LogoLockup } from "@/components/Logo";
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
@@ -14,7 +23,17 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
   const [business, setBusiness] = useState("");
+  const [refCode, setRefCode] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Pre-fill referral code from URL param
+  useEffect(() => {
+    const ref = searchParams.get("ref");
+    if (ref) {
+      setRefCode(ref);
+      setMode("signup");
+    }
+  }, [searchParams]);
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -47,6 +66,26 @@ export default function LoginPage() {
         setError(error.message);
         return;
       }
+
+      // If referral code was provided, record it
+      if (data.user && refCode.trim()) {
+        const code = refCode.trim().toLowerCase();
+        // Look up the referrer by code
+        const { data: referrer } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("referral_code", code)
+          .maybeSingle();
+        if (referrer) {
+          await supabase.from("profiles").update({ referred_by: referrer.id }).eq("id", data.user.id);
+          await supabase.from("referrals").insert({
+            referrer_id: referrer.id,
+            referred_id: data.user.id,
+            code_used: code,
+          });
+        }
+      }
+
       if (data.session) {
         router.push("/dashboard");
         router.refresh();
@@ -83,7 +122,7 @@ export default function LoginPage() {
           <p className="sub">
             {mode === "login"
               ? "Bienvenido de vuelta a TrainerFlow."
-              : "Empezá a gestionar tu negocio hoy."}
+              : "15 días gratis. Sin tarjeta. Cancelá cuando quieras."}
           </p>
 
           {error && <div className="error">{error}</div>}
@@ -107,6 +146,14 @@ export default function LoginPage() {
                     value={business}
                     onChange={(e) => setBusiness(e.target.value)}
                     placeholder="JP Training"
+                  />
+                </div>
+                <div className="field">
+                  <label>Código de invitación <span style={{ color: "var(--gray)", fontWeight: 400 }}>(opcional)</span></label>
+                  <input
+                    value={refCode}
+                    onChange={(e) => setRefCode(e.target.value)}
+                    placeholder="ej: juan-a1b2c3"
                   />
                 </div>
               </>

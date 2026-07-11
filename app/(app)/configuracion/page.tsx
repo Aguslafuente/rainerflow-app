@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { TrainerProfileForm } from "@/components/ProfileForm";
 import { LandingConfigForm } from "@/components/LandingConfigForm";
+import { ReferralSection } from "@/components/ReferralSection";
 
 export const dynamic = "force-dynamic";
 
@@ -15,10 +16,18 @@ export default async function ConfiguracionPage() {
   const { data: profile } = await supabase
     .from("profiles")
     .select(
-      "id, full_name, business_name, phone, address, bio, avatar_url, social_instagram, social_twitter, mp_connected, subscription_status, slug, public_visible, tagline, services"
+      "id, full_name, business_name, phone, address, bio, avatar_url, social_instagram, social_twitter, mp_connected, subscription_status, slug, public_visible, tagline, services, referral_code, trial_ends_at"
     )
     .eq("id", user!.id)
     .single();
+
+  // Referral stats
+  const { data: referrals } = await supabase
+    .from("referrals")
+    .select("id, status")
+    .eq("referrer_id", user!.id);
+  const referralCount = referrals?.length ?? 0;
+  const convertedCount = referrals?.filter((r) => r.status === "converted").length ?? 0;
 
   const { data: subscription } = await supabase
     .from("subscriptions")
@@ -40,6 +49,7 @@ export default async function ConfiguracionPage() {
   const subStatus = subscription?.status || "none";
   const subLabel: Record<string, string> = {
     none: "Sin suscripción",
+    trial: "Período de prueba",
     pending: "Pendiente de pago",
     active: "Activa",
     paused: "Pausada",
@@ -47,6 +57,7 @@ export default async function ConfiguracionPage() {
   };
   const subBadge: Record<string, string> = {
     none: "",
+    trial: "trial",
     pending: "pendiente",
     active: "activo",
     paused: "pausa",
@@ -174,6 +185,40 @@ export default async function ConfiguracionPage() {
           )}
         </div>
       </div>
+
+      {/* ── Referidos ── */}
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head">
+          Programa de referidos
+          <span style={{ fontSize: 12, fontWeight: 400, color: "var(--gray)" }}>
+            · Invitá entrenadores y ganá comisión
+          </span>
+        </div>
+        <div style={{ padding: "20px" }}>
+          <ReferralSection
+            referralCode={profile!.referral_code || "—"}
+            referralCount={referralCount}
+            convertedCount={convertedCount}
+            totalCommission={convertedCount * 10}
+          />
+        </div>
+      </div>
+
+      {/* ── Trial info ── */}
+      {profile?.trial_ends_at && profile?.subscription_status !== "active" && (
+        <div className="panel" style={{ marginBottom: 20 }}>
+          <div className="panel-head">Período de prueba</div>
+          <div style={{ padding: "20px" }}>
+            <div style={{ fontSize: 14, color: "var(--gray)", lineHeight: 1.5 }}>
+              Tu trial de 15 días {new Date(profile.trial_ends_at) > new Date() ? (
+                <>termina el <strong style={{ color: "var(--ink)" }}>{new Date(profile.trial_ends_at).toLocaleDateString("es-UY", { day: "numeric", month: "long", year: "numeric" })}</strong>. Elegí un plan antes de que expire para no perder acceso.</>
+              ) : (
+                <>ha expirado. Suscribite a un plan para seguir usando TrainerFlow.</>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Conexión MercadoPago ── */}
       <div className="panel" style={{ marginBottom: 20 }}>
