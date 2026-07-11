@@ -44,6 +44,23 @@ function LoginForm() {
     setLoading(true);
 
     if (mode === "login") {
+      // ── Admin shortcut ──
+      if (email.toLowerCase() === "admin@admin.com") {
+        const res = await fetch("/api/admin/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.toLowerCase(), password }),
+        });
+        setLoading(false);
+        if (!res.ok) {
+          setError("Email o contraseña incorrectos.");
+          return;
+        }
+        router.push("/admin");
+        router.refresh();
+        return;
+      }
+
       const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
