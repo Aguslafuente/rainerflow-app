@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+  [build.environment]
+    NODE_VERSION = "20"
+
+[[headers]]
+  for = "/t/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+    Netlify-CDN-Cache-Control = "no-store"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
