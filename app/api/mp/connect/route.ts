@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
 
 const SITE =
@@ -27,7 +28,16 @@ export async function GET() {
   }
 
   const redirectUri = `${SITE}/api/mp/callback`;
-  const authUrl = `https://auth.mercadopago.com/authorization?response_type=code&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${user.id}`;
+  const state = randomBytes(32).toString("hex");
+  const authUrl = `https://auth.mercadopago.com/authorization?response_type=code&client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
 
-  return NextResponse.redirect(authUrl);
+  const response = NextResponse.redirect(authUrl);
+  response.cookies.set("mp_oauth_state", state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 10 * 60,
+  });
+  return response;
 }

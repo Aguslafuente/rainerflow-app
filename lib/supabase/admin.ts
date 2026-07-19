@@ -1,9 +1,17 @@
 import { createClient } from "@supabase/supabase-js";
 
+/**
+ * Supabase admin client — server-only.
+ * Uses SUPABASE_SERVICE_ROLE_KEY for auth.admin methods (generateLink, etc).
+ * NEVER import from a "use client" component.
+ */
 export function createAdminClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { auth: { persistSession: false } }
-  );
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) {
+    throw new Error("Missing SUPABASE_URL or SERVICE_ROLE_KEY");
+  }
+  return createClient(url, key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }

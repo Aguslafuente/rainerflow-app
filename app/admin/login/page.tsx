@@ -61,7 +61,7 @@ export default function AdminLoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@admin.com"
+              placeholder="admin@trainerflow.com"
               required
             />
           </div>

@@ -1,82 +1,118 @@
-# TrainerFlow — MVP
+# TrainerFlow
 
-Software de gestión para personal trainers. Este repo es la **fundación funcional**: autenticación, arquitectura multi-tenant (cada entrenador ve solo sus datos) y el **módulo de Clientes** de punta a punta.
+SaaS de gestión para personal trainers y gimnasios de Uruguay y Latinoamérica.
+Incluye panel operativo para entrenadores, portal para clientes, administración de
+equipos y un panel interno para operar TrainerFlow.
 
-Stack: **Next.js 14** (App Router) · **Supabase** (Postgres + Auth + RLS) · CSS propio con la identidad de TrainerFlow.
+## Stack
 
----
+- Next.js 14 con App Router, Server Components, Route Handlers y Server Actions.
+- React 18 y TypeScript en modo estricto.
+- Supabase para PostgreSQL, Auth, Row Level Security, Storage y Realtime.
+- MercadoPago Checkout Pro y OAuth para cobros.
+- Nodemailer para verificación de correo y recuperación de contraseña.
+- Netlify para build y hosting.
 
-## Qué ya funciona
+## Funcionalidades
 
-- Registro e inicio de sesión de entrenadores (Supabase Auth).
-- Cada entrenador es un "tenant": solo ve y edita sus propios clientes (Row Level Security en la base).
-- Dashboard con resumen (clientes activos, en pausa, total).
-- Módulo Clientes: listar, crear, ver ficha, editar y eliminar.
-- Link directo a WhatsApp desde la ficha del cliente.
-- Diseño responsive con la marca (logo, paleta violeta/cyan, Poppins).
+### Entrenadores
 
-Rutinas, Pagos y Agenda están marcados como "PRONTO" — son los próximos módulos.
+- Dashboard, clientes, ficha de presentación y estados de cuenta.
+- Rutinas, ejercicios y videos.
+- Planes de nutrición y biblioteca de alimentos.
+- Progreso, hábitos, check-ins y revisiones.
+- Pagos, agenda y chat en tiempo real.
+- Perfil público, referidos, suscripción y conexión con MercadoPago.
 
----
+### Clientes
 
-## Cómo correrlo
+- Inicio con cuota, próxima sesión y accesos rápidos.
+- Rutina, nutrición, progreso, hábitos, revisiones y chat.
+- Perfil personal y pago de cuota con MercadoPago.
 
-Necesitás **Node.js 18.17 o superior**.
+### Gimnasios
+
+- Dashboard consolidado.
+- Gestión de entrenadores y clientes.
+- Invitaciones por correo, branding y configuración del equipo.
+- Suscripción Team.
+
+### Administración interna
+
+- Dashboard ejecutivo, usuarios, suscripciones, pagos y trials.
+- CRM de leads, soporte, analíticas, notificaciones y buscador global.
+- Autenticación independiente y consultas ejecutadas solamente del lado servidor.
+
+## Desarrollo local
+
+Requiere Node.js 20.
 
 ```bash
-cd trainerflow-app
 npm install
 npm run dev
 ```
 
-Abrí http://localhost:3000 — te va a llevar a la pantalla de login. Registrate con un email y contraseña, y ya podés cargar clientes.
+La aplicación queda disponible en `http://localhost:3000`.
 
-El archivo `.env.local` ya viene con las credenciales del proyecto Supabase `trainerflow`, así que no tenés que configurar nada.
+Copiá `.env.example` a `.env.local` y completá las variables necesarias. Nunca
+incluyas `.env.local` en commits ni en ZIP de despliegue.
 
----
+### Panel administrativo
 
-## Importante para probar rápido (confirmación de email)
+El panel `/admin` requiere estas variables exclusivas del servidor:
 
-Por defecto Supabase pide confirmar el email antes de poder iniciar sesión. Para probar sin fricción durante el desarrollo:
+- `ADMIN_EMAIL`
+- `ADMIN_PASSWORD`
+- `ADMIN_SESSION_SECRET`
+- `SUPABASE_SERVICE_ROLE_KEY`
 
-1. Entrá al panel de Supabase → proyecto **trainerflow**.
-2. **Authentication → Providers → Email**.
-3. Desactivá **"Confirm email"** y guardá.
+Generá `ADMIN_SESSION_SECRET` con un valor aleatorio de al menos 32 caracteres.
+No reutilices la contraseña de una cuenta personal.
 
-Con eso, al registrarte entrás directo. (En producción conviene dejarlo activado.)
+### MercadoPago
 
----
-
-## Estructura
-
-```
-app/
-  layout.tsx            · fuente Poppins + estilos globales
-  login/page.tsx        · login y registro
-  (app)/
-    layout.tsx          · shell con sidebar + guard de sesión
-    dashboard/page.tsx  · resumen del negocio
-    clientes/
-      page.tsx          · lista de clientes
-      nuevo/page.tsx     · alta
-      [id]/page.tsx      · ficha
-      [id]/editar/       · edición
-      actions.ts         · server actions (crear/editar/borrar)
-components/             · Logo, Sidebar, ClientForm, DeleteClientButton
-lib/supabase/          · clientes de Supabase (browser/server/middleware)
-middleware.ts          · refresco de sesión + protección de rutas
-```
+Además del access token, la integración marketplace utiliza `MP_APP_ID`,
+`MP_APP_SECRET` y `MP_WEBHOOK_SECRET`. La última se obtiene en la configuración
+de Webhooks de la aplicación de MercadoPago.
 
 ## Base de datos
 
-Ya está creada en Supabase (proyecto `trainerflow`), con dos tablas:
+La seguridad multi-tenant depende de las políticas RLS de Supabase. Las nuevas
+migraciones viven en `supabase/migrations/` y deben aplicarse al proyecto antes
+de desplegar el código correspondiente.
 
-- **profiles** — un registro por entrenador (nombre, negocio). Se crea solo al registrarse (trigger).
-- **clients** — clientes de cada entrenador, con `trainer_id` y políticas RLS que garantizan aislamiento por tenant.
+La migración de seguridad administrativa revoca el acceso directo del navegador
+a las tablas internas y a `admin_stats`; el panel accede a esos datos mediante
+`/api/admin/data`, después de validar la sesión administrativa.
 
-## Próximos pasos sugeridos
+## Validación
 
-1. Módulo **Rutinas**: biblioteca de ejercicios + constructor de rutinas + asignación al cliente.
-2. Módulo **Pagos**: cuotas, integración con MercadoPago, recordatorios.
-3. Módulo **Agenda**: turnos y recordatorios por WhatsApp.
-4. Deploy en **Vercel** (conectar el repo y pegar las mismas variables de entorno).
+```bash
+npx tsc --noEmit --incremental false
+npm run build
+```
+
+> Next.js 14 está fuera de soporte. El proyecto usa su último parche compatible
+> como medida transitoria; la migración a una versión LTS vigente debe hacerse en
+> una rama separada con pruebas de regresión.
+
+## Estructura principal
+
+```text
+app/
+  (app)/                 panel del entrenador
+  (gym)/gym/             panel del gimnasio
+  portal/                portal del cliente
+  admin/                 administración interna
+  api/auth/              registro y recuperación
+  api/mp/                MercadoPago y webhooks
+components/              componentes compartidos
+lib/supabase/            clientes Supabase browser/server/admin
+supabase/migrations/     cambios versionados de base de datos
+```
+
+## Despliegue
+
+El proyecto está configurado para Netlify en `netlify.toml`. El flujo recomendado
+es conectar el repositorio de GitHub con Netlify y desplegar desde una rama o PR,
+manteniendo todas las variables secretas en el panel de Netlify.

@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { LogoMark } from "@/components/Logo";
+import { Avatar } from "@/components/Avatar";
 
 const NAV_ICONS: Record<string, React.ReactNode> = {
   "/dashboard": (
@@ -71,7 +72,7 @@ const items = [
   { href: "/configuracion", label: "Configuración", soon: false },
 ];
 
-export function Sidebar({ email }: { email: string }) {
+export function Sidebar({ email, avatarUrl, fullName }: { email: string; avatarUrl?: string | null; fullName?: string | null }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -136,7 +137,13 @@ export function Sidebar({ email }: { email: string }) {
       </nav>
 
       <div className="foot">
-        <div className="email">{email}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+          <Avatar src={avatarUrl} name={fullName || email} size={32} radius={8} />
+          <div style={{ minWidth: 0 }}>
+            {fullName && <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ink)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{fullName}</div>}
+            <div className="email">{email}</div>
+          </div>
+        </div>
         <button className="btn btn-ghost btn-sm" onClick={logout}>
           Cerrar sesión
         </button>

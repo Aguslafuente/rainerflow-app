@@ -19,6 +19,7 @@ function LoginForm() {
   const supabase = createClient();
 
   const [mode, setMode] = useState<"login" | "signup">("login");
+  const [accountType, setAccountType] = useState<"trainer" | "gym" | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -44,24 +45,7 @@ function LoginForm() {
     setLoading(true);
 
     if (mode === "login") {
-      // ── Admin shortcut ──
-      if (email.toLowerCase() === "admin@admin.com") {
-        const res = await fetch("/api/admin/login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.toLowerCase(), password }),
-        });
-        setLoading(false);
-        if (!res.ok) {
-          setError("Email o contraseña incorrectos.");
-          return;
-        }
-        router.push("/admin");
-        router.refresh();
-        return;
-      }
-
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data: signInData } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -70,48 +54,49 @@ function LoginForm() {
         setError("Email o contraseña incorrectos.");
         return;
       }
-      router.push("/dashboard");
+      // Check account type to redirect correctly
+      if (signInData.user) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("account_type")
+          .eq("id", signInData.user.id)
+          .single();
+        router.push(prof?.account_type === "gym" ? "/gym" : "/dashboard");
+      } else {
+        router.push("/dashboard");
+      }
       router.refresh();
     } else {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: name, business_name: business } },
+      // Use server-side registration with generateLink + Nodemailer
+      if (!accountType) {
+        setError("Seleccioná un tipo de cuenta.");
+        setLoading(false);
+        return;
+      }
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          full_name: name,
+          business_name: business,
+          account_type: accountType,
+          referral_code: refCode.trim() || undefined,
+        }),
       });
+      const result = await res.json();
       setLoading(false);
-      if (error) {
-        setError(error.message);
+
+      if (!res.ok && result.error) {
+        setError(result.error);
         return;
       }
 
-      // If referral code was provided, record it
-      if (data.user && refCode.trim()) {
-        const code = refCode.trim().toLowerCase();
-        // Look up the referrer by code
-        const { data: referrer } = await supabase
-          .from("profiles")
-          .select("id")
-          .eq("referral_code", code)
-          .maybeSingle();
-        if (referrer) {
-          await supabase.from("profiles").update({ referred_by: referrer.id }).eq("id", data.user.id);
-          await supabase.from("referrals").insert({
-            referrer_id: referrer.id,
-            referred_id: data.user.id,
-            code_used: code,
-          });
-        }
-      }
-
-      if (data.session) {
-        router.push("/dashboard");
-        router.refresh();
-      } else {
-        setNotice(
-          "Cuenta creada. Revisá tu email para confirmar y después iniciá sesión."
-        );
-        setMode("login");
-      }
+      setNotice(
+        "Te enviamos un correo de verificación. Abrí el enlace recibido para confirmar tu cuenta. Revisá también la carpeta de correo no deseado."
+      );
+      setMode("login");
     }
   }
 
@@ -149,6 +134,34 @@ function LoginForm() {
             {mode === "signup" && (
               <>
                 <div className="field">
+                  <label>Tipo de cuenta</label>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {(["trainer", "gym"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setAccountType(t)}
+                        style={{
+                          flex: 1,
+                          padding: "14px 12px",
+                          borderRadius: 10,
+                          border: accountType === t ? "2px solid var(--violet)" : "2px solid var(--border)",
+                          background: accountType === t ? "rgba(124,108,240,0.12)" : "var(--card)",
+                          color: accountType === t ? "#fff" : "var(--gray)",
+                          cursor: "pointer",
+                          fontWeight: 600,
+                          fontSize: 14,
+                          transition: "all .15s",
+                          textAlign: "center",
+                        }}
+                      >
+                        <div style={{ fontSize: 22, marginBottom: 4 }}>{t === "trainer" ? "🏋️" : "🏢"}</div>
+                        {t === "trainer" ? "Entrenador" : "Gimnasio"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="field">
                   <label>Tu nombre</label>
                   <input
                     value={name}
@@ -158,11 +171,12 @@ function LoginForm() {
                   />
                 </div>
                 <div className="field">
-                  <label>Nombre de tu negocio</label>
+                  <label>{accountType === "gym" ? "Nombre del gimnasio" : "Nombre de tu negocio"}</label>
                   <input
                     value={business}
                     onChange={(e) => setBusiness(e.target.value)}
-                    placeholder="JP Training"
+                    placeholder={accountType === "gym" ? "Fitness Center" : "JP Training"}
+                    required={accountType === "gym"}
                   />
                 </div>
                 <div className="field">
@@ -204,6 +218,14 @@ function LoginForm() {
                 : "Crear cuenta"}
             </button>
           </form>
+
+          {mode === "login" && (
+            <p style={{ marginTop: 12, fontSize: 13, textAlign: "center" }}>
+              <a href="/recuperar-contrasena" className="link" style={{ color: "var(--gray)" }}>
+                ¿Olvidaste tu contraseña?
+              </a>
+            </p>
+          )}
 
           <p style={{ marginTop: 20, fontSize: 14, color: "var(--gray)" }}>
             {mode === "login" ? "¿No tenés cuenta? " : "¿Ya tenés cuenta? "}

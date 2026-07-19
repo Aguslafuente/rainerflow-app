@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Food = {
@@ -24,7 +24,7 @@ export function FoodSearch({
   clientId: string;
   position: number;
 }) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Food[]>([]);
   const [open, setOpen] = useState(false);
@@ -57,7 +57,7 @@ export function FoodSearch({
       setOpen(true);
     }, 200);
     return () => clearTimeout(debounceRef.current);
-  }, [query]);
+  }, [query, supabase]);
 
   // Cerrar dropdown al click afuera
   useEffect(() => {

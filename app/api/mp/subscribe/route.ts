@@ -6,8 +6,11 @@ const SITE =
   process.env.NEXT_PUBLIC_SITE_URL || "https://trainerflow-uy.netlify.app";
 
 /**
- * Crea una suscripción recurrente para el entrenador.
+ * Crea un Checkout Pro para la suscripción del entrenador.
  * Acepta ?plan=pro (default) o ?plan=team
+ *
+ * Nota: No usamos preapproval porque no está disponible en Uruguay.
+ * Usamos Checkout Pro (pago único mensual).
  */
 export async function GET(req: NextRequest) {
   const supabase = createClient();
@@ -28,69 +31,41 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  // Plan desde query param
   const planParam = req.nextUrl.searchParams.get("plan") || "pro";
   const planId: PlanId = planParam === "team" ? "team" : "pro";
   const plan = PLANS[planId];
 
-  // Verificar si ya tiene suscripción activa
-  const { data: existing } = await supabase
-    .from("subscriptions")
-    .select("id, status, mp_preapproval_id, plan")
-    .eq("trainer_id", user.id)
-    .maybeSingle();
-
-  if (existing?.status === "active") {
-    // Si quiere cambiar de plan, permitirlo (cancelar viejo, crear nuevo)
-    if (existing.plan === planId) {
-      return NextResponse.redirect(
-        new URL("/configuracion?sub=already_active", SITE)
-      );
-    }
-    // Cancelar suscripción vieja en MP
-    if (existing.mp_preapproval_id) {
-      await fetch(
-        `https://api.mercadopago.com/preapproval/${existing.mp_preapproval_id}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: "cancelled" }),
-        }
-      );
-    }
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .single();
-
-  // Crear preapproval (suscripción sin plan asociado)
-  const preapproval = {
-    reason: plan.reason,
-    auto_recurring: {
-      frequency: 1,
-      frequency_type: "months",
-      transaction_amount: plan.price,
-      currency_id: "USD",
+  const preference = {
+    items: [
+      {
+        title: plan.reason,
+        quantity: 1,
+        unit_price: plan.price,
+        currency_id: "UYU",
+      },
+    ],
+    external_reference: `trainer_sub|${user.id}|${planId}`,
+    back_urls: {
+      success: planId === "team" ? `${SITE}/gym/configuracion?sub=done` : `${SITE}/configuracion?sub=done`,
+      failure: planId === "team" ? `${SITE}/gym/configuracion?sub=error` : `${SITE}/configuracion?sub=error`,
+      pending: planId === "team" ? `${SITE}/gym/configuracion?sub=pending` : `${SITE}/configuracion?sub=pending`,
     },
-    back_url: `${SITE}/configuracion?sub=done`,
-    external_reference: `${user.id}|${planId}`,
-    payer_email: user.email,
-    status: "pending",
+    auto_return: "approved",
+    notification_url: `${SITE}/api/mp/webhook`,
+    excluded_payment_types: [
+      { id: "ticket" },
+      { id: "atm" },
+      { id: "bank_transfer" },
+    ],
   };
 
-  const res = await fetch("https://api.mercadopago.com/preapproval", {
+  const res = await fetch("https://api.mercadopago.com/checkout/preferences", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(preapproval),
+    body: JSON.stringify(preference),
   });
 
   const data = await res.json();
@@ -104,17 +79,23 @@ export async function GET(req: NextRequest) {
   }
 
   // Guardar/actualizar suscripción en DB
-  await supabase.from("subscriptions").upsert(
+  const { error: subscriptionError } = await supabase.from("subscriptions").upsert(
     {
       trainer_id: user.id,
       plan: planId,
       price_usd: plan.price,
       status: "pending",
-      mp_preapproval_id: data.id,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "trainer_id" }
   );
+  if (subscriptionError) {
+    console.error("Subscription pending state error:", subscriptionError);
+    return NextResponse.json(
+      { error: "No se pudo guardar el estado de la suscripción." },
+      { status: 500 }
+    );
+  }
 
   return NextResponse.redirect(data.init_point);
 }

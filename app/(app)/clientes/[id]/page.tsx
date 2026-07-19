@@ -15,6 +15,8 @@ import {
   METHOD_LABELS,
 } from "@/lib/format";
 import { INTAKE_SECTIONS } from "@/lib/intakeFields";
+import { ClientActiveToggle } from "@/components/ClientActiveToggle";
+import { toggleClientActiveAction } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +42,7 @@ export default async function ClienteDetailPage({
   const supabase = createClient();
   const { data: c } = await supabase
     .from("clients")
-    .select("*")
+    .select("*, mp_subscription_id, mp_subscription_status, is_active")
     .eq("id", params.id)
     .single();
 
@@ -111,14 +113,19 @@ export default async function ClienteDetailPage({
       <div className="panel" style={{ marginBottom: 20 }}>
         <div className="panel-head">
           Acceso del cliente
-          {c.user_id && <span className="badge activo">Activo</span>}
+          {c.user_id && (
+            <span className={`badge ${c.is_active ? "activo" : "pausa"}`}>
+              {c.is_active ? "Activo" : "Desactivado"}
+            </span>
+          )}
         </div>
         <div style={{ padding: "16px 20px" }}>
           {c.user_id ? (
-            <p style={{ fontSize: 14, color: "var(--gray)" }}>
-              Este cliente ya activó su acceso: puede ver su plan y chatear con
-              vos.
-            </p>
+            <ClientActiveToggle
+              clientId={c.id}
+              initialActive={c.is_active ?? false}
+              toggleAction={toggleClientActiveAction}
+            />
           ) : (
             <InviteBox
               token={c.invite_token}
@@ -312,13 +319,49 @@ export default async function ClienteDetailPage({
               <div style={{ fontSize: 24, fontWeight: 700 }}>
                 {fmtMoney(Number(c.monthly_fee), c.currency)}
               </div>
-              <div style={{ marginTop: 8 }}>
+              <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <span className={`badge ${paidThisMonth ? "activo" : "pausa"}`}>
                   {paidThisMonth
                     ? `Al día · ${periodLabel(period)}`
                     : `Pendiente · ${periodLabel(period)}`}
                 </span>
+                {c.mp_subscription_status === "active" && (
+                  <span className="badge activo" style={{ fontSize: 11 }}>
+                    Débito automático activo
+                  </span>
+                )}
               </div>
+              <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <a
+                  href={`/api/mp/checkout?client=${c.id}`}
+                  className="btn btn-primary btn-sm"
+                  style={{ fontSize: 12, padding: "6px 14px" }}
+                >
+                  Cobrar cuota (MercadoPago)
+                </a>
+              </div>
+              {!paidThisMonth && c.phone && (
+                <a
+                  href={`https://wa.me/${c.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                    `¡Hola ${c.full_name.split(" ")[0]}! 👋\n\nTe recuerdo que tu cuota de ${periodLabel(period)} (${fmtMoney(Number(c.monthly_fee), c.currency)}) está pendiente.\n\nPodés pagarla desde acá:\nhttps://trainerflow-uy.netlify.app/api/mp/checkout?client=${c.id}\n\n¡Gracias! 💪`
+                  )}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn btn-sm"
+                  style={{
+                    marginTop: 8,
+                    fontSize: 12,
+                    padding: "6px 14px",
+                    background: "#25D366",
+                    color: "#fff",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 6,
+                  }}
+                >
+                  📲 Enviar aviso de cobro por WhatsApp
+                </a>
+              )}
             </div>
           )}
           <div className="form-card">

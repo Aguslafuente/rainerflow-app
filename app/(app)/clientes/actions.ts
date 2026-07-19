@@ -82,6 +82,19 @@ export async function updateClientAction(id: string, formData: FormData) {
   redirect(`/clientes/${id}`);
 }
 
+export async function toggleClientActiveAction(clientId: string, isActive: boolean) {
+  const supabase = createClient();
+  // RLS ensures trainer can only update their own clients
+  const { error } = await supabase
+    .from("clients")
+    .update({ is_active: isActive })
+    .eq("id", clientId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/clientes/${clientId}`);
+  revalidatePath("/clientes");
+}
+
 export async function deleteClientAction(id: string) {
   const supabase = createClient();
   const { error } = await supabase.from("clients").delete().eq("id", id);

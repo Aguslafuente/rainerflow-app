@@ -64,8 +64,6 @@ export function PaymentForm({
             <option value="efectivo">Efectivo</option>
             <option value="transferencia">Transferencia</option>
             <option value="mercadopago">MercadoPago</option>
-            <option value="abitab">Abitab</option>
-            <option value="redpagos">Red Pagos</option>
             <option value="otro">Otro</option>
           </select>
         </div>

@@ -6,8 +6,8 @@ Todo lo necesario para continuar el proyecto en otra sesión. Última actualizac
 
 ## 1. Qué es
 
-SaaS web de gestión integral para **personal trainers** (Uruguay / LatAm, español rioplatense).
-Doble perfil: **entrenador** (administra su negocio y arma planes) y **cliente** (portal propio para ver su plan y registrar progreso).
+SaaS web de gestión integral para **personal trainers y gimnasios** (Uruguay / LatAm, español rioplatense).
+Tiene cuatro superficies: **entrenador**, **cliente**, **gimnasio/equipo** y **administración interna de TrainerFlow**.
 
 - **App en vivo:** https://trainerflow-uy.netlify.app
 - **Estado:** MVP funcional, en producción y en uso real.
@@ -27,8 +27,7 @@ Doble perfil: **entrenador** (administra su negocio y arma planes) y **cliente**
 - Región: **sa-east-1** (São Paulo)
 - Org: Aguslafuente's Org (`guyyqqswoeqffzwssvav`)
 - URL: `https://oqlyobyrllkzwxktvrme.supabase.co`
-- Cuenta del entrenador (dueño): `lafuenteagustin19@gmail.com`
-- Cuenta de cliente de prueba: `agus10pro.2017@gmail.com` (vinculada al cliente "el pamba")
+- Las cuentas operativas y de prueba se administran exclusivamente desde Supabase Auth.
 - Nota Auth: "Confirm email" está desactivado (o el flujo lo asume). Site URL y Redirect URLs configuradas a `https://trainerflow-uy.netlify.app`.
 
 ### Netlify
@@ -41,9 +40,15 @@ Doble perfil: **entrenador** (administra su negocio y arma planes) y **cliente**
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase (pública) |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon/publishable key de Supabase (pública) |
+| `SUPABASE_SERVICE_ROLE_KEY` | **secreto** — operaciones internas del servidor |
 | `MERCADOPAGO_ACCESS_TOKEN` | **secreto** — access token de MercadoPago (para cobros) |
+| `MP_APP_ID` / `MP_APP_SECRET` | OAuth marketplace de MercadoPago |
+| `MP_WEBHOOK_SECRET` | validación de firma de webhooks |
+| `SMTP_*` | envío de correos transaccionales |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | acceso al panel interno |
+| `ADMIN_SESSION_SECRET` | firma de la sesión administrativa |
 
-> Los mismos valores públicos están en `.env.local` para correr en local. El token de MercadoPago es secreto y NO está en el repo.
+> `.env.local` se usa solo para desarrollo. No debe incluirse en Git ni en ZIP de despliegue.
 
 ---
 
@@ -104,6 +109,8 @@ Todo con **Row Level Security (RLS)**. Patrón general:
 - **Middleware** (`middleware.ts` + `lib/supabase/middleware.ts`): refresca sesión y protege rutas. Públicas: `/login`, `/auth`, `/invitacion`, `/api/mp`, `/pago-`.
 - **`app/(app)/`** = área del **entrenador** (sidebar). Su layout: si el usuario está vinculado como cliente (`clients.user_id`), lo redirige a `/portal`.
 - **`app/portal/`** = área del **cliente**. Su layout: si no es cliente, lo manda a `/dashboard`.
+- **`app/(gym)/gym/`** = área del **gimnasio**. El middleware valida `profiles.account_type = 'gym'`.
+- **`app/admin/`** = operación interna. Usa una sesión administrativa `HttpOnly`; los datos se consultan mediante `/api/admin/data` con `service_role`.
 - **`/invitacion/[token]`** = alta del cliente (crea cuenta + `claim_client`). Público.
 - Distinción de rol: un usuario es "cliente" si existe una fila en `clients` con `user_id = auth.uid()`; si no, es entrenador.
 
@@ -126,8 +133,12 @@ app/
     ejercicios/  subir-videos/
     pagos/
     agenda/
+  (gym)/gym/                · GIMNASIO / TEAM
+    clientes/ entrenadores/ configuracion/
   portal/                    · CLIENTE
-    (inicio = chat)  rutina/  nutricion/  progreso/  habitos/  revision/
+    inicio/  chat/  rutina/  nutricion/  progreso/  habitos/  revision/ perfil/
+  admin/                     · ADMINISTRACIÓN INTERNA
+    usuarios/ suscripciones/ pagos/ leads/ trials/ analytics/ soporte/
 components/  · Logo, Sidebar, MobileHeader, MobileNav, PortalHeader, PortalNav,
                ClientTabs, ClientForm, PaymentForm, StatCard, Chat, InviteBox,
                ExerciseVideo, ConfirmSubmit, DeleteClientButton
@@ -144,7 +155,7 @@ Convenciones: páginas de datos son Server Components con `export const dynamic 
 
 - App creada en MercadoPago Developers (Checkout Pro). Token en env `MERCADOPAGO_ACCESS_TOKEN`.
 - **Cobro:** el cliente entra a su portal → "Pagar con MercadoPago" → `GET /api/mp/checkout` crea una preferencia (`items` con la cuota, `external_reference = clientId|period`, `notification_url = /api/mp/webhook`, `back_urls`) y redirige al `init_point` de MP.
-- **Registro automático:** MP llama a `/api/mp/webhook` → se verifica el pago con la API de MP → si `approved`, se llama `record_mp_payment` que inserta el pago (method `mercadopago`) en la ficha del cliente. Dedupe por `mp_payment_id`.
+- **Registro automático:** MP llama a `/api/mp/webhook` → se valida `x-signature`, se consulta el pago en la API de MP y, si está aprobado, se registra con `record_mp_payment`. Dedupe por `mp_payment_id`.
 - Probar con credenciales **de prueba** (`TEST-…`) + tarjetas de test antes de producción.
 - Pendiente: **suscripciones** (débito recurrente automático) con la API de Suscripciones (mismo token).
 
@@ -160,17 +171,16 @@ Convenciones: páginas de datos son Server Components con `export const dynamic 
 
 ## 9. Pendientes / próximos pasos
 
-1. **UX del portal del cliente (pedido):** el chat como pantalla de inicio molesta. Crear una **página de inicio (dashboard del cliente)** con resumen (su cuota/estado, próxima sesión, acceso rápido a rutina/nutrición/progreso) y mover el chat a su propia pestaña. En general: pulir el portal para que se sienta tan prolijo como el panel del entrenador y mejorar el flujo (fácil de usar).
+1. **Migración de framework:** pasar de Next.js 14 (sin soporte) a una versión LTS vigente, como trabajo separado con pruebas de regresión.
 2. **Fotos de progreso** y fotos de la revisión mensual (requiere bucket de Storage para imágenes, tipo el de videos).
-3. **MercadoPago suscripciones** (cuota mensual automática).
-4. **Notificaciones** (avisar al cliente de mensaje nuevo / rutina nueva; email o push).
-5. **Deploy vía Git** para CI/CD.
+3. **Notificaciones transaccionales** de mensaje nuevo, rutina asignada y recordatorios (email o push).
+4. **Pruebas automatizadas** para roles/RLS, webhooks y flujos de alta.
+5. **CI/CD y esquema:** GitHub → Netlify, historial completo de migraciones y tipos generados de Supabase.
 
 ---
 
 ## 10. Assets de marca / negocio (fuera del código)
 
 - Plan de producto, deck comercial (horizontal + vertical), logo (SVG/PNG) y cotización — están en la carpeta de salida del proyecto.
-- **Pricing:** Trainer USD 20/mes (clientes ilimitados) · Team USD 59/mes · 14 días de prueba.
+- **Pricing implementado:** Pro UYU 1.200/mes · Team UYU 2.500/mes · 14 días de prueba.
 - **Competencia:** Trainerize / TrueCoach / Everfit (~USD 137–200/mes, en inglés). Diferenciadores: precio, español, cobros locales (MercadoPago/Abitab/Red Pagos), WhatsApp, foco en el PT independiente.
-```

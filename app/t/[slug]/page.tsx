@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { notFound } from "next/navigation";
+import Image from "next/image";
 import { LogoMark } from "@/components/Logo";
 import type { Metadata } from "next";
 
@@ -83,9 +84,12 @@ export default async function TrainerLanding({
       {/* Hero */}
       <section className="landing-hero">
         {profile.avatar_url ? (
-          <img
+          <Image
             src={profile.avatar_url}
             alt={profile.full_name || "Trainer"}
+            width={120}
+            height={120}
+            unoptimized
             className="landing-avatar"
           />
         ) : (

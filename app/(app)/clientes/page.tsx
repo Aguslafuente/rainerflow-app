@@ -17,7 +17,7 @@ export default async function ClientesPage() {
   const supabase = createClient();
   const { data: clients } = await supabase
     .from("clients")
-    .select("id, full_name, email, phone, goal, status")
+    .select("id, full_name, email, phone, goal, status, avatar_url")
     .order("full_name");
 
   const all = clients ?? [];
@@ -72,7 +72,11 @@ export default async function ClientesPage() {
                 <tr key={c.id} className="row">
                   <td>
                     <Link href={`/clientes/${c.id}`} className="cell-name">
-                      <span className="avatar">{initials(c.full_name)}</span>
+                      {c.avatar_url ? (
+                        <span className="avatar" style={{ backgroundImage: `url(${c.avatar_url})`, backgroundSize: "cover", backgroundPosition: "center", fontSize: 0 }}>.</span>
+                      ) : (
+                        <span className="avatar">{initials(c.full_name)}</span>
+                      )}
                       {c.full_name}
                     </Link>
                   </td>

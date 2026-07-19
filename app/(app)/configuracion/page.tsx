@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { TrainerProfileForm } from "@/components/ProfileForm";
 import { LandingConfigForm } from "@/components/LandingConfigForm";
 import { ReferralSection } from "@/components/ReferralSection";
+import { ChangePasswordForm } from "@/components/ChangePasswordForm";
+import { NotificationPrefs } from "@/components/NotificationPrefs";
 
 export const dynamic = "force-dynamic";
 
@@ -124,12 +126,11 @@ export default async function ConfiguracionPage() {
               <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 22, fontWeight: 700 }}>
-                    USD {subscription?.price_usd || "19.99"}
-                    <span style={{ fontSize: 14, fontWeight: 400, color: "var(--gray)" }}>/mes</span>
+                    $1200
+                    <span style={{ fontSize: 14, fontWeight: 400, color: "var(--gray)" }}> UYU/mes</span>
                   </div>
                   <div style={{ fontSize: 14, color: "var(--gray)", marginTop: 2 }}>
-                    Plan {subscription?.plan === "team" ? "Team" : "Pro"}
-                    {subscription?.plan === "team" ? " · Hasta 5 trainers · 3% comisión" : " · Clientes ilimitados · 5% comisión"}
+                    Plan Pro · Clientes ilimitados · 5% comisión
                   </div>
                 </div>
                 <span className={`badge ${subBadge[subStatus]}`}>{subLabel[subStatus]}</span>
@@ -137,11 +138,12 @@ export default async function ConfiguracionPage() {
               <div className="config-status-ok">
                 <span>✓</span> Tu suscripción está activa. Gracias por usar TrainerFlow.
               </div>
-              {subscription?.plan !== "team" && (
-                <a href="/api/mp/subscribe?plan=team" className="btn btn-ghost" style={{ width: "100%", marginTop: 12 }}>
-                  Upgrade a Team · USD 49.99/mes
-                </a>
-              )}
+              <a href="/api/mp/subscribe?plan=team" className="btn btn-ghost" style={{ width: "100%", marginTop: 12 }}>
+                Upgrade a Team · $2500 UYU/mes · Panel de gym + 3% comisión
+              </a>
+              <div style={{ fontSize: 12, color: "var(--gray)", marginTop: 6 }}>
+                Al hacer upgrade, tu cuenta pasa a modo Gimnasio con panel de administración.
+              </div>
               {subscription?.current_period_end && (
                 <div style={{ fontSize: 12, color: "var(--gray)", marginTop: 8 }}>
                   Próximo cobro: {subscription.current_period_end}
@@ -156,10 +158,10 @@ export default async function ConfiguracionPage() {
                 </div>
               )}
               <div className="config-plans-grid">
-                <div className="config-plan-card">
+                <div className="config-plan-card config-plan-featured">
                   <div style={{ fontSize: 13, fontWeight: 600, color: "var(--violet2)", marginBottom: 4 }}>Pro</div>
                   <div style={{ fontSize: 24, fontWeight: 700 }}>
-                    USD 19.99<span style={{ fontSize: 13, fontWeight: 400, color: "var(--gray)" }}>/mes</span>
+                    $1200<span style={{ fontSize: 13, fontWeight: 400, color: "var(--gray)" }}> UYU/mes</span>
                   </div>
                   <div style={{ fontSize: 13, color: "var(--gray)", margin: "8px 0 16px" }}>
                     Para entrenadores independientes. Clientes ilimitados, 5% comisión.
@@ -168,18 +170,16 @@ export default async function ConfiguracionPage() {
                     {subStatus === "none" ? "Elegir Pro" : "Reanudar Pro"}
                   </a>
                 </div>
-                <div className="config-plan-card config-plan-featured">
-                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--cyan)", marginBottom: 4 }}>Team · Más popular</div>
-                  <div style={{ fontSize: 24, fontWeight: 700 }}>
-                    USD 49.99<span style={{ fontSize: 13, fontWeight: 400, color: "var(--gray)" }}>/mes</span>
-                  </div>
-                  <div style={{ fontSize: 13, color: "var(--gray)", margin: "8px 0 16px" }}>
-                    Para gimnasios. Hasta 5 trainers, panel admin, 3% comisión.
-                  </div>
-                  <a href="/api/mp/subscribe?plan=team" className="btn btn-primary" style={{ width: "100%", background: "linear-gradient(135deg, var(--violet), var(--cyan))" }}>
-                    {subStatus === "none" ? "Elegir Team" : "Reanudar Team"}
-                  </a>
+              </div>
+
+              <div style={{ marginTop: 16, padding: "16px 18px", borderRadius: 12, border: "1px dashed var(--line)", background: "rgba(56,217,240,0.04)" }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--cyan)", marginBottom: 4 }}>¿Tenés un gimnasio?</div>
+                <div style={{ fontSize: 13, color: "var(--gray)", marginBottom: 12 }}>
+                  El plan Team ($2500 UYU/mes) te da panel de gym, hasta 5 trainers y 3% de comisión.
                 </div>
+                <a href="/api/mp/subscribe?plan=team" className="btn btn-primary btn-sm" style={{ width: "auto", display: "inline-flex", background: "linear-gradient(135deg, var(--violet), var(--cyan))" }}>
+                  Upgrade a Team
+                </a>
               </div>
             </>
           )}
@@ -280,6 +280,26 @@ export default async function ConfiguracionPage() {
         </div>
       </div>
 
+      {/* ── Notificaciones ── */}
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head">Notificaciones por email</div>
+        <div style={{ padding: "12px 20px" }}>
+          <NotificationPrefs userId={user!.id} role="trainer" />
+        </div>
+      </div>
+
+      {/* ── Seguridad ── */}
+      <div className="panel" style={{ marginBottom: 20 }}>
+        <div className="panel-head">Seguridad</div>
+        <div style={{ padding: "20px" }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, color: "var(--gray)", marginBottom: 4 }}>Email de la cuenta</div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--ink)" }}>{user!.email}</div>
+          </div>
+          <ChangePasswordForm />
+        </div>
+      </div>
+
       {/* ── Resumen de comisiones ── */}
       <div className="panel">
         <div className="panel-head">Cómo funcionan los cobros</div>
@@ -301,7 +321,7 @@ export default async function ConfiguracionPage() {
             <div className="config-info-item">
               <div className="config-info-label">Tu suscripción</div>
               <div className="config-info-value">
-                USD {subscription?.price_usd || "19.99"}/mes ({subscription?.plan === "team" ? "Team" : "Pro"}) aparte, para usar la plataforma.
+                ${subscription?.plan === "team" ? "2500" : "1200"} UYU/mes ({subscription?.plan === "team" ? "Team" : "Pro"}) aparte, para usar la plataforma.
               </div>
             </div>
           </div>

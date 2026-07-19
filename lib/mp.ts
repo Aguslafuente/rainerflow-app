@@ -1,11 +1,11 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 const COMMISSION_RATE = 0.05; // 5% default (Pro)
 const COMMISSION_RATE_TEAM = 0.03; // 3% (Team)
 
 export const PLANS = {
-  pro: { label: "Pro", price: 19.99, commission: 0.05, reason: "TrainerFlow Pro · Suscripción mensual" },
-  team: { label: "Team", price: 49.99, commission: 0.03, reason: "TrainerFlow Team · Suscripción mensual" },
+  pro: { label: "Pro", price: 1200, commission: 0.05, reason: "TrainerFlow Pro · Suscripción mensual" },
+  team: { label: "Team", price: 2500, commission: 0.03, reason: "TrainerFlow Team · Suscripción mensual" },
 } as const;
 
 export type PlanId = keyof typeof PLANS;
@@ -15,7 +15,7 @@ export type PlanId = keyof typeof PLANS;
  * Si está vencido, lo refresca automáticamente.
  */
 export async function getTrainerMpToken(trainerId: string): Promise<string | null> {
-  const supabase = createClient();
+  const supabase = createAdminClient();
 
   const { data: cred } = await supabase
     .from("mp_credentials")

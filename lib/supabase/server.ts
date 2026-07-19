@@ -22,6 +22,11 @@ export function createClient() {
           }
         },
       },
+      global: {
+        fetch: (url: string | URL | Request, options?: RequestInit) => {
+          return fetch(url, { ...options, cache: "no-store" });
+        },
+      },
     }
   );
 }

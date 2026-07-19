@@ -30,28 +30,40 @@ export default async function AppLayout({
   // Get trial & subscription info
   const { data: profile } = await supabase
     .from("profiles")
-    .select("trial_ends_at, subscription_status, full_name")
+    .select("trial_ends_at, subscription_status, subscription_expires_at, full_name, avatar_url")
     .eq("id", user.id)
     .single();
 
   const subStatus = profile?.subscription_status ?? "none";
   const trialEndsAt = profile?.trial_ends_at;
-  const trialExpired = trialEndsAt && new Date(trialEndsAt) < new Date();
-  const isBlocked = trialExpired && subStatus !== "active";
+  const subExpiresAt = profile?.subscription_expires_at;
+  const now = new Date();
 
-  // If trial expired and no active subscription → block everything except payment
-  if (isBlocked) {
-    return <PaywallScreen name={profile?.full_name?.split(" ")[0] || ""} />;
+  const trialExpired = trialEndsAt && new Date(trialEndsAt) < now;
+  const subExpired =
+    subExpiresAt && new Date(subExpiresAt) < now;
+
+  // Blocked if: trial expired and no active sub, OR sub expired
+  const isBlockedTrial = trialExpired && subStatus !== "active";
+  const isBlockedSub = subStatus === "active" && subExpired;
+
+  if (isBlockedTrial) {
+    return <PaywallScreen name={profile?.full_name?.split(" ")[0] || ""} reason="trial" />;
+  }
+
+  if (isBlockedSub) {
+    return <PaywallScreen name={profile?.full_name?.split(" ")[0] || ""} reason="expired" />;
   }
 
   return (
     <div className="shell">
-      <Sidebar email={user.email ?? ""} />
+      <Sidebar email={user.email ?? ""} avatarUrl={profile?.avatar_url} fullName={profile?.full_name} />
       <MobileHeader />
       <main className="main">
         <TrialBanner
           trialEndsAt={profile?.trial_ends_at ?? null}
           subscriptionStatus={subStatus}
+          subscriptionExpiresAt={profile?.subscription_expires_at ?? null}
         />
         {children}
       </main>

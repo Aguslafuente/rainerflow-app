@@ -49,21 +49,22 @@ export default function InvitacionPage() {
     setLoading(true);
 
     if (mode === "signup") {
-      const { data, error } = await supabase.auth.signUp({ email, password });
-      if (error) {
-        setLoading(false);
-        setError(error.message);
+      // Use server-side registration with generateLink + Nodemailer
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const result = await res.json();
+      setLoading(false);
+      if (!res.ok && result.error) {
+        setError(result.error);
         return;
       }
-      if (data.session) {
-        await claimAndGo();
-      } else {
-        setNotice(
-          "Cuenta creada. Revisá tu email para confirmar y después volvé a abrir este mismo link."
-        );
-        setMode("login");
-      }
-      setLoading(false);
+      setNotice(
+        "Cuenta creada. Revisá tu email para confirmar y después volvé a abrir este mismo link."
+      );
+      setMode("login");
     } else {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {

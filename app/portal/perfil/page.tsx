@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ClientProfileForm } from "@/components/ProfileForm";
+import { ChangePasswordForm } from "@/components/ChangePasswordForm";
+import { NotificationPrefs } from "@/components/NotificationPrefs";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +26,7 @@ export default async function PortalPerfilPage() {
         </div>
       </div>
 
-      <div className="panel">
+      <div className="panel" style={{ marginBottom: 20 }}>
         <div className="panel-head">Datos personales</div>
         <div style={{ padding: "20px" }}>
           <ClientProfileForm
@@ -38,6 +40,28 @@ export default async function PortalPerfilPage() {
               email: client!.email || user!.email || "",
             }}
           />
+        </div>
+      </div>
+
+      {/* ── Notificaciones ── */}
+      {user?.id && (
+        <div className="panel" style={{ marginBottom: 20 }}>
+          <div className="panel-head">Notificaciones por email</div>
+          <div style={{ padding: "12px 20px" }}>
+            <NotificationPrefs userId={user.id} role="client" />
+          </div>
+        </div>
+      )}
+
+      {/* ── Seguridad ── */}
+      <div className="panel">
+        <div className="panel-head">Seguridad</div>
+        <div style={{ padding: "20px" }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 13, color: "var(--gray)", marginBottom: 4 }}>Email de la cuenta</div>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--ink)" }}>{user!.email}</div>
+          </div>
+          <ChangePasswordForm />
         </div>
       </div>
     </>

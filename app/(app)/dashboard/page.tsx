@@ -25,7 +25,7 @@ export default async function DashboardPage() {
 
   const { data: clients } = await supabase
     .from("clients")
-    .select("id, full_name, goal, status, monthly_fee, currency, created_at")
+    .select("id, full_name, goal, status, monthly_fee, currency, created_at, avatar_url")
     .order("created_at", { ascending: false });
 
   const all = clients ?? [];
@@ -243,7 +243,11 @@ export default async function DashboardPage() {
                 </div>
                 {pendientes.map((c) => (
                   <Link key={c.id} href={`/clientes/${c.id}`} className="dash-alert-sub">
-                    <span className="avatar-sm">{initials(c.full_name)}</span>
+                    {c.avatar_url ? (
+                      <span className="avatar-sm" style={{ backgroundImage: `url(${c.avatar_url})`, backgroundSize: "cover", backgroundPosition: "center", fontSize: 0 }}>.</span>
+                    ) : (
+                      <span className="avatar-sm">{initials(c.full_name)}</span>
+                    )}
                     <span className="dash-alert-sub-name">{c.full_name}</span>
                     <span className="dash-alert-sub-detail">
                       {fmtMoney(Number(c.monthly_fee || 0), c.currency || "UYU")}
@@ -263,7 +267,11 @@ export default async function DashboardPage() {
                 </div>
                 {unansweredClients.map((c) => (
                   <Link key={c.id} href={`/clientes/${c.id}/chat`} className="dash-alert-sub">
-                    <span className="avatar-sm">{initials(c.full_name)}</span>
+                    {c.avatar_url ? (
+                      <span className="avatar-sm" style={{ backgroundImage: `url(${c.avatar_url})`, backgroundSize: "cover", backgroundPosition: "center", fontSize: 0 }}>.</span>
+                    ) : (
+                      <span className="avatar-sm">{initials(c.full_name)}</span>
+                    )}
                     <span className="dash-alert-sub-name">{c.full_name}</span>
                     <span className="dash-alert-sub-detail">Ir al chat</span>
                     <span className="dash-alert-arrow">›</span>
@@ -282,7 +290,11 @@ export default async function DashboardPage() {
                 </div>
                 {lowAdherence.map((c) => (
                   <Link key={c.id} href={`/clientes/${c.id}/habitos`} className="dash-alert-sub">
-                    <span className="avatar-sm">{initials(c.full_name)}</span>
+                    {c.avatar_url ? (
+                      <span className="avatar-sm" style={{ backgroundImage: `url(${c.avatar_url})`, backgroundSize: "cover", backgroundPosition: "center", fontSize: 0 }}>.</span>
+                    ) : (
+                      <span className="avatar-sm">{initials(c.full_name)}</span>
+                    )}
                     <span className="dash-alert-sub-name">{c.full_name}</span>
                     <span className="dash-alert-sub-detail">Ver hábitos</span>
                     <span className="dash-alert-arrow">›</span>
@@ -332,7 +344,11 @@ export default async function DashboardPage() {
                   <tr key={c.id}>
                     <td>
                       <Link href={`/clientes/${c.id}`} className="cell-name row-link">
-                        <span className="avatar">{initials(c.full_name)}</span>
+                        {c.avatar_url ? (
+                          <span className="avatar" style={{ backgroundImage: `url(${c.avatar_url})`, backgroundSize: "cover", backgroundPosition: "center", fontSize: 0 }}>.</span>
+                        ) : (
+                          <span className="avatar">{initials(c.full_name)}</span>
+                        )}
                         {c.full_name}
                       </Link>
                     </td>

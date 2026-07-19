@@ -32,8 +32,6 @@ export const METHOD_LABELS: Record<string, string> = {
   efectivo: "Efectivo",
   transferencia: "Transferencia",
   mercadopago: "MercadoPago",
-  abitab: "Abitab",
-  redpagos: "Red Pagos",
   otro: "Otro",
 };
 
